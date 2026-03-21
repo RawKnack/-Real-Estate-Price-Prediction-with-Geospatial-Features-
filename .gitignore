@@ -1,1 +1,13 @@
+# Python
 __pycache__/
+*.pyc
+
+# Data (VERY IMPORTANT)
+data/Raw/
+
+# Optional (recommended)
+data/External/
+*.csv
+
+# Notebooks cache
+.ipynb_checkpoints/
