@@ -3,79 +3,93 @@ import numpy as np
 import geopandas as gpd
 from shapely.geometry import Point
 import os
-# load artifacts (done once when file is imported)
-knn_model = joblib.load("../models/knn_model.pkl")
-train_prices = np.load("../models/train_prices.npy")
+from sklearn.metrics.pairwise import haversine_distances
 
+# -------------------------
+# BASE DIRECTORY (IMPORTANT)
+# -------------------------
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+# -------------------------
+# PATHS (ALL FIXED)
+# -------------------------
+knn_path = os.path.join(BASE_DIR, "models", "knn_model.pkl")
+prices_path = os.path.join(BASE_DIR, "models", "train_prices.npy")
+schools_path = os.path.join(BASE_DIR, "models", "schools.geojson")
+restaurants_path = os.path.join(BASE_DIR, "models", "restaurants.geojson")
+tracts_path = os.path.join(BASE_DIR, "models", "tracts.geojson")
+mean_coords_path = os.path.join(BASE_DIR, "models", "mean_coords.npy")
+
+# -------------------------
+# LOAD ARTIFACTS
+# -------------------------
+knn_model = joblib.load(knn_path)
+train_prices = np.load(prices_path)
+
+schools = gpd.read_file(schools_path).to_crs(epsg=3857)
+restaurants = gpd.read_file(restaurants_path).to_crs(epsg=3857)
+tracts = gpd.read_file(tracts_path).to_crs(epsg=3857)
+
+mean_coords = np.load(mean_coords_path)
+mean_lat, mean_lon = mean_coords
+
+# -------------------------
+# KNN FEATURE
+# -------------------------
 def compute_knn_feature(lat, lon, k=50):
-    # 1. convert to radians (VERY IMPORTANT)
     coords = np.array([[lat, lon]])
     coords_rad = np.radians(coords)
 
-    # 2. get neighbors
     distances, indices = knn_model.kneighbors(coords_rad, n_neighbors=k)
 
-    # 3. compute weights
     weights = 1 / (distances + 1e-5)
-
-    # 4. get neighbor prices
     neighbor_prices = train_prices[indices]
 
-    # 5. weighted average
     weighted_avg = (neighbor_prices * weights).sum(axis=1) / weights.sum(axis=1)
 
     return weighted_avg[0]
 
-
-# paths
-schools_path = "../models/schools.geojson"
-restaurants_path = "../models/restaurants.geojson"
-# load geo data
-schools = gpd.read_file(schools_path)
-restaurants = gpd.read_file(restaurants_path)
-
-# ensure correct CRS
-schools = schools.to_crs(epsg=3857)
-restaurants = restaurants.to_crs(epsg=3857)
+# -------------------------
+# POI FEATURES
+# -------------------------
 def compute_poi_features(lat, lon, radius=5000):
-    # 1. create point
     point = gpd.GeoSeries([Point(lon, lat)], crs="EPSG:4326")
-    
-    # 2. convert to meters CRS
     point = point.to_crs(epsg=3857)
     point_geom = point.iloc[0]
 
-    # 3. compute distances (vectorized)
     school_distances = schools.geometry.distance(point_geom)
     restaurant_distances = restaurants.geometry.distance(point_geom)
 
-    # 4. count within radius
-    school_count = (school_distances <= radius).sum()
-    restaurant_count = (restaurant_distances <= radius).sum()
+    school_count = int((school_distances <= radius).sum())
+    restaurant_count = int((restaurant_distances <= radius).sum())
 
     return {
         "school_count_5km": school_count,
         "restaurant_count_5km": restaurant_count
     }
-tracts_path = "../models/tracts.geojson"
 
-tracts = gpd.read_file(tracts_path)
-
-# ensure CRS matches
-tracts = tracts.to_crs(epsg=3857)
+# -------------------------
+# INCOME FEATURE
+# -------------------------
 def compute_income_feature(lat, lon):
-    # 1. create point
     point = gpd.GeoSeries([Point(lon, lat)], crs="EPSG:4326")
-    
-    # 2. convert CRS
     point = point.to_crs(epsg=3857)
     point_geom = point.iloc[0]
 
-    # 3. find containing tract
     match = tracts[tracts.contains(point_geom)]
 
     if len(match) == 0:
-        return None  # or default value
+        return None
 
     return match.iloc[0]["median_income"]
+
+# -------------------------
+# DISTANCE FROM MEAN
+# -------------------------
+def compute_distance_from_mean(lat, lon):
+    coords = np.radians([[lat, lon]])
+    mean_coords_rad = np.radians([[mean_lat, mean_lon]])
+
+    distance = haversine_distances(coords, mean_coords_rad)
+
+    return (distance * 6371000 / 1000)[0][0]  # km
