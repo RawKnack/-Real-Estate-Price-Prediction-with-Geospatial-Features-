@@ -11,3 +11,5 @@ data/External/
 
 # Notebooks cache
 .ipynb_checkpoints/
+myenv/
+notebooks/cache/

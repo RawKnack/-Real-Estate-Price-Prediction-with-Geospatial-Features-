@@ -7,3 +7,8 @@ lightgbm
 geopandas
 shapely
 joblib
+plotly
+matplotlib
+xgboost
+osmnx
+tqdm

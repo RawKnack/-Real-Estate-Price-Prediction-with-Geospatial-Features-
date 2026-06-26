@@ -6,8 +6,8 @@ An end-to-end machine learning system that predicts real estate prices using str
 
 ## 🚀 Live Demo
 
-* 🌍 **API Endpoint:** https://your-render-url.onrender.com
-* 📘 **API Docs (Swagger):** https://your-render-url.onrender.com/docs
+* 🌍 **API Endpoint:** https://real-estate-api-v07z.onrender.com
+* 📘 **API Docs (Swagger):** https://real-estate-api-v07z.onrender.com/docs
 
 ---
 
