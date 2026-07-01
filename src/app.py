@@ -3,11 +3,9 @@ from pydantic import BaseModel
 
 from src.predict import predict_price
 
-# create app
 app = FastAPI()
 
 
-# define input schema
 class HouseInput(BaseModel):
     bedroomcnt: float
     bathroomcnt: float
@@ -16,18 +14,15 @@ class HouseInput(BaseModel):
     longitude: float
 
 
-# home route
 @app.get("/")
 def home():
     return {"message": "Real Estate Price Prediction API is running"}
 
 
-# home route
 @app.get("/hi")
 def home():
     return {"message": "hi"}
 
-# prediction route
 @app.post("/predict")
 def predict(data: HouseInput):
     input_dict = data.dict()
